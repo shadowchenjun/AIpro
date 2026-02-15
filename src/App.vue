@@ -1,14 +1,22 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-    <div class="container mx-auto px-4 py-8 max-w-2xl">
+  <div class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+    <!-- Decorative Stars -->
+    <div class="absolute inset-0 pointer-events-none">
+      <div v-for="n in 30" :key="n" 
+        class="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
+        :style="getStarStyle(n)"
+      ></div>
+    </div>
+    
+    <div class="container mx-auto px-4 py-4 max-w-2xl relative z-10">
       <!-- Header -->
-      <header class="mb-12 text-center">
-        <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-3">极简待办清单</h1>
-        <p class="text-gray-300 text-lg">高效管理您的任务</p>
+      <header class="mb-6 text-center">
+        <h1 class="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">极简待办清单</h1>
+        <p class="text-gray-400 text-base">高效管理您的任务</p>
       </header>
 
       <!-- Stats Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div 
           @click="filter = 'all'" 
           class="cursor-pointer bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-cyan-500 transition-all duration-300 transform hover:scale-105 hover:shadow-cyan-500/30 animate-fade-in"
@@ -35,7 +43,7 @@
       </div>
 
       <!-- Add Todo Form -->
-      <div class="bg-gray-800/60 backdrop-blur-lg rounded-2xl shadow-xl p-6 mb-8 border border-gray-700">
+      <div class="bg-gray-800/60 backdrop-blur-lg rounded-2xl shadow-xl p-4 mb-4 border border-gray-700">
         <form @submit.prevent="addTodo" class="flex gap-3">
           <input
             v-model="newTodo"
@@ -57,7 +65,7 @@
       </div>
 
       <!-- Todo Filters -->
-      <div class="flex justify-center mb-6">
+      <div class="flex justify-center mb-4">
         <div class="inline-flex rounded-xl shadow-lg bg-gray-800/60 p-1 border border-gray-700" role="group">
           <button
             type="button"
@@ -248,6 +256,25 @@ const getDuration = (start: Date, end: Date): string => {
   if (minutes > 0) return `${minutes}分钟`;
   return `${seconds}秒`;
 };
+
+// Generate star position and animation
+const getStarStyle = (n: number) => {
+  const left = Math.random() * 100;
+  const top = Math.random() * 100;
+  const delay = Math.random() * 5;
+  const duration = 2 + Math.random() * 3;
+  const size = Math.random() > 0.7 ? 2 : 1;
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    animationDelay: `${delay}s`,
+    animationDuration: `${duration}s`,
+    width: `${size}px`,
+    height: `${size}px`,
+    opacity: 0.3 + Math.random() * 0.7
+  };
+};
+
 const completedCount = computed(() => todos.value.filter(todo => todo.completed).length);
 const pendingCount = computed(() => todos.value.filter(todo => !todo.completed).length);
 
@@ -370,5 +397,21 @@ button {
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Twinkling stars animation */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle ease-in-out infinite;
 }
 </style>
