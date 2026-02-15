@@ -6,8 +6,9 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     port: 3000,
-    host: true, // Enable network access for Codespace
+    host: true,
     strictPort: false,
+    allowedHosts: true,
   },
   preview: {
     port: 3000,

@@ -84,19 +84,26 @@
             class="px-6 py-4 flex items-center justify-between hover:bg-gray-700/40 transition-all duration-300 transform hover:translate-x-1"
             :class="{ 'opacity-70': todo.completed }"
           >
-            <div class="flex items-center">
-              <input
-                type="checkbox"
-                :checked="todo.completed"
-                @change="toggleTodo(todo)"
-                class="h-6 w-6 text-cyan-500 rounded focus:ring-cyan-500 bg-gray-700 border-gray-600 cursor-pointer"
-              />
-              <span
-                class="ml-4 text-gray-200 text-lg"
-                :class="{ 'line-through text-gray-500': todo.completed }"
-              >
-                {{ todo.text }}
-              </span>
+            <div class="flex-1">
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  :checked="todo.completed"
+                  @change="toggleTodo(todo)"
+                  class="h-6 w-6 text-cyan-500 rounded focus:ring-cyan-500 bg-gray-700 border-gray-600 cursor-pointer"
+                />
+                <span
+                  class="ml-4 text-gray-200 text-lg"
+                  :class="{ 'line-through text-gray-500': todo.completed }"
+                >
+                  {{ todo.text }}
+                </span>
+              </div>
+              <div class="ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-2">
+                <span class="bg-gray-700/50 px-2 py-0.5 rounded">📝 {{ formatTime(todo.createdAt) }}</span>
+                <span v-if="todo.completed && todo.completedAt" class="bg-green-700/50 text-green-400 px-2 py-0.5 rounded">✅ {{ formatTime(todo.completedAt) }}</span>
+                <span v-if="todo.completed && todo.completedAt" class="bg-blue-700/50 text-blue-400 px-2 py-0.5 rounded">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
+              </div>
             </div>
             <div class="flex space-x-3">
               <button
@@ -152,20 +159,84 @@ interface Todo {
   text: string;
   completed: boolean;
   createdAt: Date;
+  completedAt: Date | null;
 }
 
 const newTodo = ref('');
 const filter = ref<'all' | 'active' | 'completed'>('all');
-const todos = ref<Todo[]>([
-  { id: 1, text: '学习Vue 3', completed: true, createdAt: new Date() },
-  { id: 2, text: '构建待办事项应用', completed: false, createdAt: new Date() },
-  { id: 3, text: '部署到生产环境', completed: false, createdAt: new Date() }
-]);
+// Load from localStorage
+const loadTodos = (): Todo[] => {
+  const saved = localStorage.getItem('todos');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.map((t: any) => ({
+        ...t,
+        createdAt: new Date(t.createdAt),
+        completedAt: t.completedAt ? new Date(t.completedAt) : null
+      }));
+    } catch {
+      return [];
+    }
+  }
+  return [
+    { id: 1, text: '学习Vue 3', completed: true, createdAt: new Date(Date.now() - 86400000), completedAt: new Date(Date.now() - 3600000) },
+    { id: 2, text: '构建待办事项应用', completed: false, createdAt: new Date() },
+    { id: 3, text: '部署到生产环境', completed: false, createdAt: new Date() }
+  ];
+};
+
+const todos = ref<Todo[]>(loadTodos());
+
+// Save to localStorage
+const saveTodos = () => {
+  localStorage.setItem('todos', JSON.stringify(todos.value));
+};
 
 // Generate unique IDs
 let nextId = Math.max(...todos.value.map(t => t.id), 0) + 1;
 
-// Computed properties
+// Format time
+const formatTime = (date: Date): string => {
+  const d = new Date(date);
+  const now = new Date();
+  
+  // Within today
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  // Yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return '昨天 ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  // This week
+  const diff = now.getTime() - d.getTime();
+  if (diff < 7 * 24 * 3600000) {
+    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return days[d.getDay()] + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  // Older
+  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Get duration string
+const getDuration = (start: Date, end: Date): string => {
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) return `${days}天${hours % 24}小时`;
+  if (hours > 0) return `${hours}小时${minutes % 60}分钟`;
+  if (minutes > 0) return `${minutes}分钟`;
+  return `${seconds}秒`;
+};
 const completedCount = computed(() => todos.value.filter(todo => todo.completed).length);
 const pendingCount = computed(() => todos.value.filter(todo => !todo.completed).length);
 
@@ -188,20 +259,25 @@ const addTodo = () => {
     id: nextId++,
     text: newTodo.value.trim(),
     completed: false,
-    createdAt: new Date()
+    createdAt: new Date(),
+    completedAt: null
   });
   
   newTodo.value = '';
+  saveTodos();
 };
 
 const toggleTodo = (todo: Todo) => {
   todo.completed = !todo.completed;
+  todo.completedAt = todo.completed ? new Date() : null;
+  saveTodos();
 };
 
 const removeTodo = (todo: Todo) => {
   const index = todos.value.indexOf(todo);
   if (index !== -1) {
     todos.value.splice(index, 1);
+    saveTodos();
   }
 };
 
@@ -209,10 +285,12 @@ const editTodo = (todo: Todo) => {
   const newText = prompt('编辑任务:', todo.text);
   if (newText !== null && newText.trim() !== '') {
     todo.text = newText.trim();
+    saveTodos();
   }
 };
 
 const clearCompleted = () => {
   todos.value = todos.value.filter(todo => !todo.completed);
+  saveTodos();
 };
 </script>
