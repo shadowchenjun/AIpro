@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { supabaseConfig } from './config.example'
+import { supabaseConfig } from './config'
 
 // Supabase 配置
 const supabaseUrl = supabaseConfig.url
@@ -14,26 +14,32 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // 用户相关 API
 export const authAPI = {
-  // 发送手机号验证码
-  async sendCode(phone: string) {
+  // 发送邮箱验证码
+  async sendCode(email: string) {
     const { error } = await supabase.auth.signInWithOtp({
-      phone,
+      email,
       options: {
-        channel: 'sms'
+        // 邮箱链接登录模式
+        emailRedirectTo: window.location.origin
       }
     })
     return { success: !error, error: error?.message }
   },
 
-  // 验证验证码并登录
-  async verifyCode(phone: string, code: string) {
-    const { data, error } = await supabase.auth.verifyOTP(phone, code)
+  // 验证邮箱链接并登录 (邮箱使用链接验证)
+  async verifyEmail(link: string) {
+    // 邮箱验证是通过链接完成的，不需要额外验证
+    // Supabase 会自动处理链接中的 token
+    const { data, error } = await supabase.auth.getSession()
     if (error) return { success: false, error: error.message }
-    return { success: true, user: data.user }
+    return { success: true, user: data.session?.user }
   },
 
   // 获取当前用户
   async getUser() {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    return { user, error: error?.message }
+  },
     const { data: { user }, error } = await supabase.auth.getUser()
     return { user, error: error?.message }
   },
