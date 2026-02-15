@@ -9,15 +9,26 @@
 
       <!-- Stats Overview -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-cyan-500 transition-all duration-300 transform hover:scale-105">
+        <div 
+          @click="filter = 'all'" 
+          class="cursor-pointer bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-cyan-500 transition-all duration-300 transform hover:scale-105 hover:shadow-cyan-500/30 animate-fade-in"
+        >
           <div class="text-3xl font-bold text-cyan-400">{{ todos.length }}</div>
           <div class="text-gray-400 text-sm mt-1">总任务数</div>
         </div>
-        <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-green-500 transition-all duration-300 transform hover:scale-105">
+        <div 
+          @click="filter = 'completed'" 
+          class="cursor-pointer bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-green-500 transition-all duration-300 transform hover:scale-105 hover:shadow-green-500/30 animate-fade-in"
+          style="animation-delay: 0.1s"
+        >
           <div class="text-3xl font-bold text-green-400">{{ completedCount }}</div>
           <div class="text-gray-400 text-sm mt-1">已完成</div>
         </div>
-        <div class="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-yellow-500 transition-all duration-300 transform hover:scale-105">
+        <div 
+          @click="filter = 'active'" 
+          class="cursor-pointer bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-xl p-5 text-center border border-gray-700 hover:border-yellow-500 transition-all duration-300 transform hover:scale-105 hover:shadow-yellow-500/30 animate-fade-in"
+          style="animation-delay: 0.2s"
+        >
           <div class="text-3xl font-bold text-yellow-400">{{ pendingCount }}</div>
           <div class="text-gray-400 text-sm mt-1">待完成</div>
         </div>
@@ -294,3 +305,70 @@ const clearCompleted = () => {
   saveTodos();
 };
 </script>
+
+<style>
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* Task item animations */
+ul li {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Checkbox animation */
+input[type="checkbox"] {
+  transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked {
+  transform: scale(1.2);
+}
+
+/* Button hover effects */
+button {
+  transition: all 0.3s ease;
+}
+
+/* Background subtle animation */
+.min-h-screen {
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+</style>
