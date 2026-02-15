@@ -1,5 +1,19 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+  <!-- 登录页面 -->
+  <Login v-if="!user" @login-success="handleLoginSuccess" />
+  
+  <!-- 主应用 -->
+  <div v-else class="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
+    <!-- 登出按钮 -->
+    <div class="absolute top-2 right-2 z-20">
+      <button 
+        @click="handleLogout" 
+        class="text-xs text-gray-500 hover:text-gray-300 px-2 py-1"
+      >
+        退出登录
+      </button>
+    </div>
+    
     <!-- Decorative Stars -->
     <div class="absolute inset-0 pointer-events-none">
       <div v-for="n in 30" :key="n" 
@@ -15,7 +29,7 @@
         <p class="text-gray-400 text-xs sm:text-base">高效管理您的任务</p>
       </header>
 
-      <!-- Stats Overview - Horizontal on mobile -->
+      <!-- Stats Overview -->
       <div class="flex sm:grid sm:grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4 overflow-x-auto sm:overflow-visible">
         <div 
           @click="filter = 'all'" 
@@ -67,6 +81,7 @@
           <button
             type="button"
             @click="filter = 'all'"
+            :class="{ 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white': filter === 'all', 'bg-gray-700/50 text-gray-300 hover:bg-gray-700': filter !== 'all' }"
             class="px-3 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-300"
           >
             全部
@@ -162,104 +177,94 @@
           清除 {{ completedCount }} 个已完成任务
         </button>
       </div>
+      
+      <!-- Sync Status -->
+      <div class="mt-4 text-center">
+        <span v-if="syncing" class="text-xs text-cyan-400">🔄 同步中...</span>
+        <span v-else class="text-xs text-gray-500">☁️ 已同步</span>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import Login from './Login.vue'
+import { supabase, authAPI, todosAPI } from './api'
 
 interface Todo {
-  id: number;
-  text: string;
-  completed: boolean;
-  createdAt: Date;
-  completedAt: Date | null;
+  id: string
+  text: string
+  completed: boolean
+  createdAt: Date
+  completedAt: Date | null
 }
 
-const newTodo = ref('');
-const filter = ref<'all' | 'active' | 'completed'>('all');
-// Load from localStorage
-const loadTodos = (): Todo[] => {
-  const saved = localStorage.getItem('todos');
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      return parsed.map((t: any) => ({
-        ...t,
-        createdAt: new Date(t.createdAt),
-        completedAt: t.completedAt ? new Date(t.completedAt) : null
-      }));
-    } catch {
-      return [];
-    }
+const user = ref<any>(null)
+const newTodo = ref('')
+const filter = ref<'all' | 'active' | 'completed'>('all')
+const todos = ref<Todo[]>([])
+const syncing = ref(false)
+let nextId = 1
+
+// Computed
+const completedCount = computed(() => todos.value.filter(t => t.completed).length)
+const pendingCount = computed(() => todos.value.filter(t => !t.completed).length)
+
+const filteredTodos = computed(() => {
+  switch (filter.value) {
+    case 'active':
+      return todos.value.filter(t => !t.completed)
+    case 'completed':
+      return todos.value.filter(t => t.completed)
+    default:
+      return todos.value
   }
-  return [
-    { id: 1, text: '学习Vue 3', completed: true, createdAt: new Date(Date.now() - 86400000), completedAt: new Date(Date.now() - 3600000) },
-    { id: 2, text: '构建待办事项应用', completed: false, createdAt: new Date() },
-    { id: 3, text: '部署到生产环境', completed: false, createdAt: new Date() }
-  ];
-};
+})
 
-const todos = ref<Todo[]>(loadTodos());
-
-// Save to localStorage
-const saveTodos = () => {
-  localStorage.setItem('todos', JSON.stringify(todos.value));
-};
-
-// Generate unique IDs
-let nextId = Math.max(...todos.value.map(t => t.id), 0) + 1;
-
-// Format time
+// Time formatting
 const formatTime = (date: Date): string => {
-  const d = new Date(date);
-  const now = new Date();
+  const d = new Date(date)
+  const now = new Date()
   
-  // Within today
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
   
-  // Yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
   if (d.toDateString() === yesterday.toDateString()) {
-    return '昨天 ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    return '昨天 ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
   
-  // This week
-  const diff = now.getTime() - d.getTime();
+  const diff = now.getTime() - d.getTime()
   if (diff < 7 * 24 * 3600000) {
-    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    return days[d.getDay()] + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    return days[d.getDay()] + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
   
-  // Older
-  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-};
+  return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 
-// Get duration string
 const getDuration = (start: Date, end: Date): string => {
-  const diff = new Date(end).getTime() - new Date(start).getTime();
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+  const diff = new Date(end).getTime() - new Date(start).getTime()
+  const seconds = Math.floor(diff / 1000)
+  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
   
-  if (days > 0) return `${days}天${hours % 24}小时`;
-  if (hours > 0) return `${hours}小时${minutes % 60}分钟`;
-  if (minutes > 0) return `${minutes}分钟`;
-  return `${seconds}秒`;
-};
+  if (days > 0) return `${days}天${hours % 24}小时`
+  if (hours > 0) return `${hours}小时${minutes % 60}分钟`
+  if (minutes > 0) return `${minutes}分钟`
+  return `${seconds}秒`
+}
 
-// Generate star position and animation
 const getStarStyle = (n: number) => {
-  const left = Math.random() * 100;
-  const top = Math.random() * 100;
-  const delay = Math.random() * 5;
-  const duration = 2 + Math.random() * 3;
-  const size = Math.random() > 0.7 ? 2 : 1;
+  const left = Math.random() * 100
+  const top = Math.random() * 100
+  const delay = Math.random() * 5
+  const duration = 2 + Math.random() * 3
+  const size = Math.random() > 0.7 ? 2 : 1
   return {
     left: `${left}%`,
     top: `${top}%`,
@@ -268,69 +273,120 @@ const getStarStyle = (n: number) => {
     width: `${size}px`,
     height: `${size}px`,
     opacity: 0.3 + Math.random() * 0.7
-  };
-};
-
-const completedCount = computed(() => todos.value.filter(todo => todo.completed).length);
-const pendingCount = computed(() => todos.value.filter(todo => !todo.completed).length);
-
-const filteredTodos = computed(() => {
-  switch (filter.value) {
-    case 'active':
-      return todos.value.filter(todo => !todo.completed);
-    case 'completed':
-      return todos.value.filter(todo => todo.completed);
-    default:
-      return todos.value;
   }
-});
+}
 
-// Methods
-const addTodo = () => {
-  if (newTodo.value.trim() === '') return;
+// Cloud sync
+const loadTodos = async () => {
+  if (!user.value) return
   
-  todos.value.push({
-    id: nextId++,
+  syncing.value = true
+  const result = await todosAPI.getTodos(user.value.id)
+  
+  if (result.success && result.todos) {
+    todos.value = result.todos.map((t: any) => ({
+      id: t.id,
+      text: t.text,
+      completed: t.completed,
+      createdAt: new Date(t.created_at),
+      completedAt: t.completed_at ? new Date(t.completed_at) : null
+    }))
+  }
+  syncing.value = false
+}
+
+const syncTodo = async (todo: Todo, action: 'create' | 'update' | 'delete') => {
+  if (!user.value) return
+  
+  syncing.value = true
+  
+  if (action === 'create') {
+    await todosAPI.createTodo(user.value.id, todo.text)
+  } else if (action === 'update') {
+    await todosAPI.updateTodo(user.value.id, todo.id, {
+      text: todo.text,
+      completed: todo.completed,
+      completed_at: todo.completedAt
+    })
+  } else if (action === 'delete') {
+    await todosAPI.deleteTodo(user.value.id, todo.id)
+  }
+  
+  syncing.value = false
+}
+
+// Todo actions
+const addTodo = async () => {
+  if (newTodo.value.trim() === '') return
+  
+  const todo: Todo = {
+    id: String(nextId++),
     text: newTodo.value.trim(),
     completed: false,
     createdAt: new Date(),
     completedAt: null
-  });
+  }
   
-  newTodo.value = '';
-  saveTodos();
-};
+  todos.value.unshift(todo)
+  newTodo.value = ''
+  
+  await syncTodo(todo, 'create')
+}
 
-const toggleTodo = (todo: Todo) => {
-  todo.completed = !todo.completed;
-  todo.completedAt = todo.completed ? new Date() : null;
-  saveTodos();
-};
+const toggleTodo = async (todo: Todo) => {
+  todo.completed = !todo.completed
+  todo.completedAt = todo.completed ? new Date() : null
+  await syncTodo(todo, 'update')
+}
 
-const removeTodo = (todo: Todo) => {
-  const index = todos.value.indexOf(todo);
+const removeTodo = async (todo: Todo) => {
+  const index = todos.value.indexOf(todo)
   if (index !== -1) {
-    todos.value.splice(index, 1);
-    saveTodos();
+    todos.value.splice(index, 1)
+    await syncTodo(todo, 'delete')
   }
-};
+}
 
-const editTodo = (todo: Todo) => {
-  const newText = prompt('编辑任务:', todo.text);
+const editTodo = async (todo: Todo) => {
+  const newText = prompt('编辑任务:', todo.text)
   if (newText !== null && newText.trim() !== '') {
-    todo.text = newText.trim();
-    saveTodos();
+    todo.text = newText.trim()
+    await syncTodo(todo, 'update')
   }
-};
+}
 
-const clearCompleted = () => {
-  todos.value = todos.value.filter(todo => !todo.completed);
-  saveTodos();
-};
+const clearCompleted = async () => {
+  const completed = todos.value.filter(t => t.completed)
+  todos.value = todos.value.filter(t => !t.completed)
+  
+  for (const todo of completed) {
+    await syncTodo(todo, 'delete')
+  }
+}
+
+// Auth
+const handleLoginSuccess = (userData: any) => {
+  user.value = userData
+  loadTodos()
+}
+
+const handleLogout = async () => {
+  await authAPI.logout()
+  user.value = null
+  todos.value = []
+}
+
+// Check auth on mount
+onMounted(async () => {
+  const { user: currentUser } = await authAPI.getUser()
+  if (currentUser) {
+    user.value = currentUser
+    loadTodos()
+  }
+})
 </script>
 
 <style>
-/* Fade in animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -347,7 +403,6 @@ const clearCompleted = () => {
   opacity: 0;
 }
 
-/* Task item animations */
 ul li {
   animation: slideIn 0.3s ease-out;
 }
@@ -363,7 +418,6 @@ ul li {
   }
 }
 
-/* Checkbox animation */
 input[type="checkbox"] {
   transition: all 0.2s ease;
 }
@@ -372,30 +426,21 @@ input[type="checkbox"]:checked {
   transform: scale(1.2);
 }
 
-/* Button hover effects */
 button {
   transition: all 0.3s ease;
 }
 
-/* Background subtle animation */
 .min-h-screen {
   background-size: 200% 200%;
   animation: gradientShift 15s ease infinite;
 }
 
 @keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* Twinkling stars animation */
 @keyframes twinkle {
   0%, 100% {
     opacity: 0.3;
