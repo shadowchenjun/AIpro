@@ -14,32 +14,27 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // 用户相关 API
 export const authAPI = {
-  // 发送邮箱验证码
-  async sendCode(email: string) {
-    const { error } = await supabase.auth.signInWithOtp({
+  // 注册
+  async signUp(email: string, password: string) {
+    const { data, error } = await supabase.auth.signUp({
       email,
-      options: {
-        // 邮箱链接登录模式
-        emailRedirectTo: window.location.origin
-      }
+      password
     })
-    return { success: !error, error: error?.message }
+    return { success: !error, error: error?.message, data }
   },
 
-  // 验证邮箱链接并登录 (邮箱使用链接验证)
-  async verifyEmail(link: string) {
-    // 邮箱验证是通过链接完成的，不需要额外验证
-    // Supabase 会自动处理链接中的 token
-    const { data, error } = await supabase.auth.getSession()
+  // 登录（用户名密码）
+  async signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
     if (error) return { success: false, error: error.message }
-    return { success: true, user: data.session?.user }
+    return { success: true, user: data.user, session: data.session }
   },
 
   // 获取当前用户
   async getUser() {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    return { user, error: error?.message }
-  },
     const { data: { user }, error } = await supabase.auth.getUser()
     return { user, error: error?.message }
   },
@@ -91,9 +86,15 @@ export const todosAPI = {
 
   // 更新待办事项
   async updateTodo(userId: string, todoId: string, updates: any) {
+    // 处理日期格式
+    const formattedUpdates = {
+      ...updates,
+      completed_at: updates.completed_at ? new Date(updates.completed_at).toISOString() : null
+    }
+    
     const { data, error } = await supabase
       .from('todos')
-      .update(updates)
+      .update(formattedUpdates)
       .eq('id', todoId)
       .eq('user_id', userId)
       .select()
@@ -174,5 +175,35 @@ export const todosAPI = {
     }
     
     return results
+  }
+}
+
+// 用户统计 API
+export const userStatsAPI = {
+  // 获取当日完成次数（从已完成任务中统计）
+  async getDailyCompletionCount(userId: string) {
+    // 先获取今天0点的时间
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    const { data, error } = await supabase
+      .from('todos')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .eq('completed', true)
+    
+    if (error) {
+      console.error('获取完成次数失败:', error)
+      return { success: false, count: 0 }
+    }
+    
+    // 过滤出今天完成的
+    const todayCount = (data || []).filter(t => {
+      if (!t.completed_at) return false
+      const completedDate = new Date(t.completed_at)
+      return completedDate >= todayStart
+    }).length
+    
+    return { success: true, count: todayCount }
   }
 }

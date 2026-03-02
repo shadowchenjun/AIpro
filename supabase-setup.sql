@@ -12,10 +12,22 @@ CREATE TABLE IF NOT EXISTS todos (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 创建用户统计表
+CREATE TABLE IF NOT EXISTS user_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  stat_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  completion_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, stat_date)
+);
+
 -- 启用 RLS
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_stats ENABLE ROW LEVEL SECURITY;
 
--- 创建策略：用户只能操作自己的数据
+-- todos 表策略
 CREATE POLICY "用户只能查看自己的待办" ON todos
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -28,6 +40,17 @@ CREATE POLICY "用户只能更新自己的待办" ON todos
 CREATE POLICY "用户只能删除自己的待办" ON todos
   FOR DELETE USING (auth.uid() = user_id);
 
--- 创建索引优化查询性能
+-- user_stats 表策略
+CREATE POLICY "用户只能查看自己的统计" ON user_stats
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "用户只能更新自己的统计" ON user_stats
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "用户只能插入自己的统计" ON user_stats
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 创建索引
 CREATE INDEX idx_todos_user_id ON todos(user_id);
 CREATE INDEX idx_todos_created_at ON todos(created_at DESC);
+CREATE INDEX idx_user_stats_user_date ON user_stats(user_id, stat_date);

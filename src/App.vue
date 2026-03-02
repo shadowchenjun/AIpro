@@ -123,7 +123,8 @@
                   class="h-5 w-5 sm:h-6 sm:w-6 text-cyan-500 rounded focus:ring-cyan-500 bg-gray-700 border-gray-600 cursor-pointer flex-shrink-0"
                 />
                 <span
-                  class="ml-3 sm:ml-4 text-gray-200 text-sm sm:text-lg truncate"
+                  @click="!todo.completed && openTimer(todo)"
+                  class="ml-3 sm:ml-4 text-gray-200 text-sm sm:text-lg truncate cursor-pointer hover:text-cyan-400 transition-colors"
                   :class="{ 'line-through text-gray-500': todo.completed }"
                 >
                   {{ todo.text }}
@@ -184,13 +185,119 @@
         <span v-else class="text-xs text-gray-500">☁️ 已同步</span>
       </div>
     </div>
+    
+    <!-- 计时器弹窗 -->
+    <div v-if="selectedTodo" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50" @click.self="closeTimer">
+      <div class="text-center">
+        <h2 class="text-2xl sm:text-3xl text-gray-300 mb-8 font-light">⏱️ 已过去时间</h2>
+        
+        <!-- 大屏幕计时器 -->
+        <div class="bg-gray-900/80 rounded-3xl p-8 sm:p-12 mb-8 backdrop-blur-lg border border-gray-700">
+          <div class="flex items-center justify-center gap-4 sm:gap-8">
+            <div class="text-center">
+              <div class="text-6xl sm:text-9xl font-bold text-cyan-400 font-mono tabular-nums">
+                {{ padZero(elapsedTime.hours) }}
+              </div>
+              <div class="text-gray-500 mt-2 text-sm sm:text-lg">小时</div>
+            </div>
+            <div class="text-6xl sm:text-9xl font-bold text-gray-600">:</div>
+            <div class="text-center">
+              <div class="text-6xl sm:text-9xl font-bold text-cyan-400 font-mono tabular-nums">
+                {{ padZero(elapsedTime.minutes) }}
+              </div>
+              <div class="text-gray-500 mt-2 text-sm sm:text-lg">分钟</div>
+            </div>
+            <div class="text-6xl sm:text-9xl font-bold text-gray-600">:</div>
+            <div class="text-center">
+              <div class="text-6xl sm:text-9xl font-bold text-cyan-400 font-mono tabular-nums">
+                {{ padZero(elapsedTime.seconds) }}
+              </div>
+              <div class="text-gray-500 mt-2 text-sm sm:text-lg">秒</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 任务内容 -->
+        <div class="text-xl sm:text-2xl text-white mb-8 max-w-md">
+          📝 {{ selectedTodo.text }}
+        </div>
+        
+        <!-- 完成按钮 - 火焰效果 -->
+        <button
+          @click="completeTodoFromTimer"
+          class="relative px-10 py-4 text-xl font-bold text-white rounded-xl overflow-hidden group mb-4"
+          :class="{ 'opacity-50 cursor-not-allowed': selectedTodo.completed }"
+          :disabled="selectedTodo.completed"
+        >
+          <!-- 火焰背景 -->
+          <span class="absolute inset-0 bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 opacity-80 group-hover:opacity-100 transition-opacity"></span>
+          <span class="absolute inset-0 bg-gradient-to-r from-orange-400 via-red-400 to-yellow-400 blur-md opacity-50 group-hover:opacity-80 transition-all"></span>
+          <!-- 火焰边缘动画 -->
+          <span class="absolute inset-0 rounded-xl animate-pulse bg-gradient-to-r from-orange-400 via-red-500 to-yellow-400 opacity-30"></span>
+          <!-- 按钮文字 -->
+          <span class="relative flex items-center gap-2">
+            <span class="text-2xl">🎉</span>
+            {{ selectedTodo.completed ? '已完成!' : '完成目标' }}
+            <span class="text-2xl">🔥</span>
+          </span>
+        </button>
+        
+        <!-- 关闭按钮 -->
+        <button
+          @click="closeTimer"
+          class="bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-xl text-lg transition-all duration-300 ml-4"
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+    
+    <!-- 恭喜达成目标动画 -->
+    <div v-if="showCelebration" class="fixed inset-0 bg-black/95 flex items-center justify-center z-[100]" @click="closeCelebration">
+      <div class="text-center">
+        <!-- 烟花效果 - 根据等级调整数量 -->
+        <div class="relative">
+          <div v-for="i in celebrationConfig.fireworkCount" :key="i" 
+            class="absolute rounded-full"
+            :style="getFireworkStyle(i, celebrationConfig.fireworkColors)"
+          ></div>
+        </div>
+        
+        <!-- 主标题动画 -->
+        <div class="relative z-10">
+          <h2 class="text-5xl sm:text-7xl font-bold text-transparent bg-clip-text animate-bounce mb-4"
+              :style="{ backgroundImage: celebrationConfig.gradient }">
+            {{ celebrationConfig.emoji }} {{ celebrationConfig.title }} {{ celebrationConfig.emoji }}
+          </h2>
+          <p class="text-2xl sm:text-3xl text-white mb-8 animate-pulse">
+            {{ completedGoalText }}
+          </p>
+          
+          <!-- 成就徽章 - 根据等级调整 -->
+          <div class="inline-flex items-center gap-3 px-8 py-4 rounded-2xl border"
+               :style="{ background: celebrationConfig.badgeBg, borderColor: celebrationConfig.badgeBorder }">
+            <span class="text-4xl">{{ celebrationConfig.badgeEmoji }}</span>
+            <span class="text-xl font-bold" :style="{ color: celebrationConfig.titleColor }">
+              {{ celebrationConfig.badgeText }}
+            </span>
+          </div>
+          
+          <!-- 等级提示 -->
+          <p v-if="celebrationLevel > 1" class="text-yellow-400 mt-4 text-lg">
+            🎯 今日已完成 {{ dailyCompletionCount }} 个任务！
+          </p>
+          
+          <p class="text-gray-400 mt-8 text-sm">点击任意位置关闭</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Login from './Login.vue'
-import { supabase, authAPI, todosAPI } from './api'
+import { supabase, authAPI, todosAPI, userStatsAPI } from './api'
 
 interface Todo {
   id: string
@@ -205,6 +312,98 @@ const newTodo = ref('')
 const filter = ref<'all' | 'active' | 'completed'>('all')
 const todos = ref<Todo[]>([])
 const syncing = ref(false)
+const selectedTodo = ref<Todo | null>(null)
+const timerInterval = ref<number | null>(null)
+const elapsedTime = ref({ hours: 0, minutes: 0, seconds: 0 })
+const showCelebration = ref(false)
+const completedGoalText = ref('')
+const dailyCompletionCount = ref(0)
+const celebrationLevel = ref(1)
+
+// 庆祝配置
+const celebrationConfigs = {
+  1: {  // 第1个 - 初战告捷
+    title: '恭喜你达成目标!',
+    emoji: '🎉',
+    gradient: 'linear-gradient(to right, #00FFFF, #00FF00)',
+    fireworkCount: 12,
+    fireworkColors: ['#00FFFF', '#00FF00', '#FFFF00'],
+    badgeBg: 'rgba(0, 255, 255, 0.3)',
+    badgeBorder: 'rgba(0, 255, 255, 0.8)',
+    badgeEmoji: '🌟',
+    badgeText: '初战告捷',
+    titleColor: '#00FFFF'
+  },
+  3: {  // 第3个 - 渐入佳境
+    title: '太棒了！连续达成!',
+    emoji: '🚀',
+    gradient: 'linear-gradient(to right, #00FF00, #39FF14)',
+    fireworkCount: 20,
+    fireworkColors: ['#00FF00', '#39FF14', '#7FFF00'],
+    badgeBg: 'rgba(57, 255, 20, 0.3)',
+    badgeBorder: 'rgba(57, 255, 20, 0.8)',
+    badgeEmoji: '💪',
+    badgeText: '渐入佳境',
+    titleColor: '#39FF14'
+  },
+  5: {  // 第5个 - 势如破竹
+    title: '势如破竹！所向披靡!',
+    emoji: '⚡',
+    gradient: 'linear-gradient(to right, #FF00FF, #FF1493)',
+    fireworkCount: 30,
+    fireworkColors: ['#FF00FF', '#FF1493', '#FF6B6B'],
+    badgeBg: 'rgba(255, 0, 255, 0.3)',
+    badgeBorder: 'rgba(255, 0, 255, 0.8)',
+    badgeEmoji: '🔥',
+    badgeText: '势如破竹',
+    titleColor: '#FF00FF'
+  },
+  8: {  // 第8个 - 卓越非凡
+    title: '卓越非凡！无人能挡!',
+    emoji: '💎',
+    gradient: 'linear-gradient(to right, #FF0080, #FF8C00)',
+    fireworkCount: 40,
+    fireworkColors: ['#FF0080', '#FF8C00', '#FFD700'],
+    badgeBg: 'rgba(255, 0, 128, 0.3)',
+    badgeBorder: 'rgba(255, 0, 128, 0.8)',
+    badgeEmoji: '👑',
+    badgeText: '卓越非凡',
+    titleColor: '#FF0080'
+  },
+  15: {  // 第15个 - 传奇王者
+    title: '传奇王者！封神之作!',
+    emoji: '🏆',
+    gradient: 'linear-gradient(to right, #FFD700, #FF0000, #FF00FF, #00FFFF)',
+    fireworkCount: 60,
+    fireworkColors: ['#FFD700', '#FF0000', '#FF00FF', '#00FFFF', '#00FF00'],
+    badgeBg: 'rgba(255, 215, 0, 0.4)',
+    badgeBorder: 'rgba(255, 215, 0, 1)',
+    badgeEmoji: '🦞',
+    badgeText: '传奇王者',
+    titleColor: '#FFD700'
+  }
+}
+
+const celebrationConfig = computed(() => {
+  const level = celebrationLevel.value
+  if (level >= 15) return celebrationConfigs[15]
+  if (level >= 8) return celebrationConfigs[8]
+  if (level >= 5) return celebrationConfigs[5]
+  if (level >= 3) return celebrationConfigs[3]
+  return celebrationConfigs[1]
+})
+
+// 获取当日完成次数
+const getDailyCompletionCount = async () => {
+  // 直接从已加载的任务中统计所有已完成的数量
+  if (!user.value || !todos.value.length) return 0
+  
+  const completedCount = todos.value.filter(t => t.completed).length
+  console.log('总已完成任务:', completedCount)
+  console.log('任务详情:', todos.value.map(t => ({ text: t.text, completed: t.completed, completedAt: t.completedAt })))
+  
+  return completedCount
+}
 let nextId = 1
 
 // Computed
@@ -259,6 +458,97 @@ const getDuration = (start: Date, end: Date): string => {
   return `${seconds}秒`
 }
 
+// 计时器功能
+const updateElapsedTime = () => {
+  if (!selectedTodo.value) return
+  const now = new Date()
+  const created = new Date(selectedTodo.value.createdAt)
+  const diff = now.getTime() - created.getTime()
+  
+  const totalSeconds = Math.floor(diff / 1000)
+  elapsedTime.value.hours = Math.floor(totalSeconds / 3600)
+  elapsedTime.value.minutes = Math.floor((totalSeconds % 3600) / 60)
+  elapsedTime.value.seconds = totalSeconds % 60
+}
+
+const openTimer = (todo: Todo) => {
+  if (todo.completed) return
+  selectedTodo.value = todo
+  updateElapsedTime()
+  timerInterval.value = window.setInterval(updateElapsedTime, 1000)
+}
+
+const closeTimer = () => {
+  selectedTodo.value = null
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
+  }
+}
+
+// 从计时器完成任务
+const completeTodoFromTimer = async () => {
+  if (!selectedTodo.value || selectedTodo.value.completed) return
+  
+  // 先完成任务
+  selectedTodo.value.completed = true
+  selectedTodo.value.completedAt = new Date()
+  
+  // 同步到云端
+  if (user.value) {
+    await todosAPI.updateTodo(user.value.id, selectedTodo.value.id, {
+      completed: true,
+      completed_at: selectedTodo.value.completedAt
+    })
+  }
+  
+  // 重新计算当日完成次数
+  const newCount = await getDailyCompletionCount()
+  dailyCompletionCount.value = newCount
+  
+  // 确定庆祝等级
+  if (newCount >= 15) celebrationLevel.value = 15
+  else if (newCount >= 8) celebrationLevel.value = 8
+  else if (newCount >= 5) celebrationLevel.value = 5
+  else if (newCount >= 3) celebrationLevel.value = 3
+  else celebrationLevel.value = 1
+  
+  // 显示庆祝动画
+  showCelebration.value = true
+  
+  // 3秒后自动关闭计时器
+  setTimeout(() => {
+    closeTimer()
+  }, 500)
+}
+
+const closeCelebration = () => {
+  showCelebration.value = false
+}
+
+// 烟花样式
+const getFireworkStyle = (i: number, colors: string[]) => {
+  const color = colors[i % colors.length]
+  const angle = (i / colors.length) * 360
+  const distance = 150 + Math.random() * 100
+  const x = Math.cos(angle * Math.PI / 180) * distance
+  const y = Math.sin(angle * Math.PI / 180) * distance
+  
+  return {
+    left: '50%',
+    top: '50%',
+    backgroundColor: color,
+    transform: `translate(${x}px, ${y}px)`,
+    animation: `firework 1.5s ease-out forwards`,
+    animationDelay: `${i * 0.05}s`,
+    boxShadow: `0 0 10px ${color}, 0 0 20px ${color}`,
+    width: i % 3 === 0 ? '8px' : '4px',
+    height: i % 3 === 0 ? '8px' : '4px'
+  }
+}
+
+const padZero = (n: number) => n.toString().padStart(2, '0')
+
 const getStarStyle = (n: number) => {
   const left = Math.random() * 100
   const top = Math.random() * 100
@@ -281,16 +571,21 @@ const loadTodos = async () => {
   if (!user.value) return
   
   syncing.value = true
-  const result = await todosAPI.getTodos(user.value.id)
-  
-  if (result.success && result.todos) {
-    todos.value = result.todos.map((t: any) => ({
-      id: t.id,
-      text: t.text,
-      completed: t.completed,
-      createdAt: new Date(t.created_at),
-      completedAt: t.completed_at ? new Date(t.completed_at) : null
-    }))
+  try {
+    const result = await todosAPI.getTodos(user.value.id)
+    
+    if (result.success && result.todos) {
+      // 确保completed字段正确读取
+      todos.value = result.todos.map((t: any) => ({
+        id: t.id,
+        text: t.text,
+        completed: Boolean(t.completed), // 确保是boolean类型
+        createdAt: new Date(t.created_at),
+        completedAt: t.completed_at ? new Date(t.completed_at) : null
+      }))
+    }
+  } catch (e) {
+    console.error('加载任务失败:', e)
   }
   syncing.value = false
 }
@@ -365,9 +660,17 @@ const clearCompleted = async () => {
 }
 
 // Auth
-const handleLoginSuccess = (userData: any) => {
+const handleLoginSuccess = async (userData: any) => {
   user.value = userData
-  loadTodos()
+  await loadTodos()
+  // 任务加载完成后再计算等级
+  const count = getDailyCompletionCount()
+  dailyCompletionCount.value = count
+  if (count >= 15) celebrationLevel.value = 15
+  else if (count >= 8) celebrationLevel.value = 8
+  else if (count >= 5) celebrationLevel.value = 5
+  else if (count >= 3) celebrationLevel.value = 3
+  else celebrationLevel.value = 1
 }
 
 const handleLogout = async () => {
@@ -454,5 +757,19 @@ button {
 
 .animate-twinkle {
   animation: twinkle ease-in-out infinite;
+}
+
+@keyframes firework {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x), var(--y)) scale(1);
+    opacity: 0;
+  }
 }
 </style>
