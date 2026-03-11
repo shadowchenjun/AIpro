@@ -107,7 +107,8 @@
 
       <!-- Todo List -->
       <div class="bg-gray-800/60 backdrop-blur-lg rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-gray-700">
-        <ul class="divide-y divide-gray-700">
+        <!-- 非已完成视图：普通列表 -->
+        <ul v-if="filter !== 'completed'" class="divide-y divide-gray-700">
           <li
             v-for="todo in filteredTodos"
             :key="todo.id"
@@ -167,6 +168,64 @@
             </div>
           </li>
         </ul>
+        
+        <!-- 已完成视图：分组列表 -->
+        <div v-else-if="filter === 'completed'">
+          <div v-if="groupedCompletedTodos.length === 0" class="px-6 py-8 sm:py-16 text-center">
+            <div class="text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <p class="text-base sm:text-xl text-gray-400">暂无已完成任务</p>
+              <p class="text-gray-500 mt-2 text-xs sm:text-base">完成的任务会在这里显示</p>
+            </div>
+          </div>
+          <div v-else>
+            <div v-for="group in groupedCompletedTodos" :key="group.title" class="border-b border-gray-700 last:border-b-0">
+              <div class="px-3 sm:px-6 py-2 bg-gray-700/50 sticky top-0">
+                <span class="text-xs sm:text-sm font-medium text-cyan-400">{{ group.title }} ({{ group.todos.length }})</span>
+              </div>
+              <ul class="divide-y divide-gray-700">
+                <li
+                  v-for="todo in group.todos"
+                  :key="todo.id"
+                  class="px-3 sm:px-6 py-3 sm:py-4 flex items-start sm:items-center justify-between hover:bg-gray-700/40 transition-all duration-300 opacity-70"
+                >
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center">
+                      <input
+                        type="checkbox"
+                        :checked="todo.completed"
+                        @change="toggleTodo(todo)"
+                        class="h-5 w-5 sm:h-6 sm:w-6 text-cyan-500 rounded focus:ring-cyan-500 bg-gray-700 border-gray-600 cursor-pointer flex-shrink-0"
+                      />
+                      <span class="ml-3 sm:ml-4 text-gray-200 text-sm sm:text-lg truncate cursor-pointer line-through text-gray-500">
+                        {{ todo.text }}
+                      </span>
+                    </div>
+                    <div class="ml-8 sm:ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-1 sm:gap-2">
+                      <span class="bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">📝 {{ formatTime(todo.createdAt) }}</span>
+                      <span v-if="todo.completedAt" class="bg-green-700/50 text-green-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">✅ {{ formatTime(todo.completedAt) }}</span>
+                      <span v-if="todo.completedAt" class="bg-blue-700/50 text-blue-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
+                      <span v-if="todo.summary" class="bg-purple-700/50 text-purple-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">📝 {{ todo.summary }}</span>
+                    </div>
+                  </div>
+                  <div class="flex space-x-1 sm:space-x-3 ml-2 flex-shrink-0">
+                    <button
+                      @click="removeTodo(todo)"
+                      class="text-red-400 hover:text-red-300 hover:bg-red-900/50 p-1.5 sm:p-2 rounded-full transition-all duration-300"
+                      title="删除"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Clear Completed -->
@@ -252,6 +311,36 @@
       </div>
     </div>
     
+    <!-- 总结填写弹窗 -->
+    <div v-if="showSummaryModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50" @click.self="cancelSummary">
+      <div class="bg-gray-800/90 backdrop-blur-lg rounded-2xl p-6 sm:p-8 max-w-md w-full mx-4 border border-gray-700">
+        <h2 class="text-xl sm:text-2xl text-white font-bold mb-4 text-center">📝 填写任务总结</h2>
+        <p class="text-gray-400 text-sm mb-4 text-center">
+          任务：{{ pendingCompleteTodo?.text }}
+        </p>
+        <textarea
+          v-model="taskSummary"
+          placeholder="记录完成这个任务的感悟、经验或后续想法..."
+          class="w-full px-4 py-3 bg-gray-700/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 border border-gray-600 placeholder-gray-400 resize-none"
+          rows="4"
+        ></textarea>
+        <div class="flex justify-center gap-4 mt-6">
+          <button
+            @click="confirmCompleteWithoutSummary"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded-xl transition-all duration-300"
+          >
+            跳过
+          </button>
+          <button
+            @click="confirmCompleteWithSummary"
+            class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl transition-all duration-300"
+          >
+            确认完成
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- 恭喜达成目标动画 -->
     <div v-if="showCelebration" class="fixed inset-0 bg-black/95 flex items-center justify-center z-[100]" @click="closeCelebration">
       <div class="text-center">
@@ -305,6 +394,7 @@ interface Todo {
   completed: boolean
   createdAt: Date
   completedAt: Date | null
+  summary: string | null
 }
 
 const user = ref<any>(null)
@@ -319,6 +409,9 @@ const showCelebration = ref(false)
 const completedGoalText = ref('')
 const dailyCompletionCount = ref(0)
 const celebrationLevel = ref(1)
+const showSummaryModal = ref(false)
+const pendingCompleteTodo = ref<Todo | null>(null)
+const taskSummary = ref('')
 
 // 庆祝配置
 const celebrationConfigs = {
@@ -421,6 +514,52 @@ const filteredTodos = computed(() => {
   }
 })
 
+// 按时间分组（已完成任务）
+const groupedCompletedTodos = computed(() => {
+  const completed = todos.value.filter(t => t.completed)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const thisWeekStart = new Date(today)
+  thisWeekStart.setDate(today.getDate() - today.getDay())
+  const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  
+  const groups: { title: string; todos: Todo[] }[] = []
+  
+  const todayTodos = completed.filter(t => {
+    const d = new Date(t.completedAt!)
+    return d >= today
+  })
+  if (todayTodos.length > 0) {
+    groups.push({ title: '今日内', todos: todayTodos })
+  }
+  
+  const thisWeekTodos = completed.filter(t => {
+    const d = new Date(t.completedAt!)
+    return d >= thisWeekStart && d < today
+  })
+  if (thisWeekTodos.length > 0) {
+    groups.push({ title: '本周内', todos: thisWeekTodos })
+  }
+  
+  const thisMonthTodos = completed.filter(t => {
+    const d = new Date(t.completedAt!)
+    return d >= thisMonthStart && d < thisWeekStart
+  })
+  if (thisMonthTodos.length > 0) {
+    groups.push({ title: '本月内', todos: thisMonthTodos })
+  }
+  
+  const olderTodos = completed.filter(t => {
+    const d = new Date(t.completedAt!)
+    return d < thisMonthStart
+  })
+  if (olderTodos.length > 0) {
+    groups.push({ title: '更早', todos: olderTodos })
+  }
+  
+  return groups
+})
+
 // Time formatting
 const formatTime = (date: Date): string => {
   const d = new Date(date)
@@ -487,18 +626,21 @@ const closeTimer = () => {
 }
 
 // 从计时器完成任务
-const completeTodoFromTimer = async () => {
-  if (!selectedTodo.value || selectedTodo.value.completed) return
+// 完成任务时填写总结
+const confirmCompleteWithSummary = async () => {
+  if (!pendingCompleteTodo.value) return
   
-  // 先完成任务
-  selectedTodo.value.completed = true
-  selectedTodo.value.completedAt = new Date()
+  const todo = pendingCompleteTodo.value
+  todo.completed = true
+  todo.completedAt = new Date()
+  todo.summary = taskSummary.value.trim() || null
   
   // 同步到云端
   if (user.value) {
-    await todosAPI.updateTodo(user.value.id, selectedTodo.value.id, {
+    await todosAPI.updateTodo(user.value.id, todo.id, {
       completed: true,
-      completed_at: selectedTodo.value.completedAt
+      completed_at: todo.completedAt,
+      summary: todo.summary
     })
   }
   
@@ -513,6 +655,11 @@ const completeTodoFromTimer = async () => {
   else if (newCount >= 3) celebrationLevel.value = 3
   else celebrationLevel.value = 1
   
+  // 关闭总结弹窗
+  showSummaryModal.value = false
+  taskSummary.value = ''
+  pendingCompleteTodo.value = null
+  
   // 显示庆祝动画
   showCelebration.value = true
   
@@ -520,6 +667,22 @@ const completeTodoFromTimer = async () => {
   setTimeout(() => {
     closeTimer()
   }, 500)
+}
+
+const cancelSummary = () => {
+  showSummaryModal.value = false
+  taskSummary.value = ''
+  pendingCompleteTodo.value = null
+  closeTimer()
+}
+
+const completeTodoFromTimer = async () => {
+  if (!selectedTodo.value || selectedTodo.value.completed) return
+  
+  // 显示总结填写弹窗
+  pendingCompleteTodo.value = selectedTodo.value
+  taskSummary.value = ''
+  showSummaryModal.value = true
 }
 
 const closeCelebration = () => {
@@ -579,9 +742,10 @@ const loadTodos = async () => {
       todos.value = result.todos.map((t: any) => ({
         id: t.id,
         text: t.text,
-        completed: Boolean(t.completed), // 确保是boolean类型
+        completed: Boolean(t.completed),
         createdAt: new Date(t.created_at),
-        completedAt: t.completed_at ? new Date(t.completed_at) : null
+        completedAt: t.completed_at ? new Date(t.completed_at) : null,
+        summary: t.summary || null
       }))
     }
   } catch (e) {
@@ -629,9 +793,56 @@ const addTodo = async () => {
 }
 
 const toggleTodo = async (todo: Todo) => {
-  todo.completed = !todo.completed
-  todo.completedAt = todo.completed ? new Date() : null
-  await syncTodo(todo, 'update')
+  if (!todo.completed) {
+    // 勾选完成时，显示总结弹窗
+    pendingCompleteTodo.value = todo
+    taskSummary.value = ''
+    showSummaryModal.value = true
+  } else {
+    // 取消完成
+    todo.completed = false
+    todo.completedAt = null
+    todo.summary = null
+    await syncTodo(todo, 'update')
+  }
+}
+
+// 直接确认完成（不填写总结）
+const confirmCompleteWithoutSummary = async () => {
+  if (!pendingCompleteTodo.value) return
+  
+  const todo = pendingCompleteTodo.value
+  todo.completed = true
+  todo.completedAt = new Date()
+  todo.summary = null
+  
+  // 同步到云端
+  if (user.value) {
+    await todosAPI.updateTodo(user.value.id, todo.id, {
+      completed: true,
+      completed_at: todo.completedAt,
+      summary: null
+    })
+  }
+  
+  // 重新计算当日完成次数
+  const newCount = await getDailyCompletionCount()
+  dailyCompletionCount.value = newCount
+  
+  // 确定庆祝等级
+  if (newCount >= 15) celebrationLevel.value = 15
+  else if (newCount >= 8) celebrationLevel.value = 8
+  else if (newCount >= 5) celebrationLevel.value = 5
+  else if (newCount >= 3) celebrationLevel.value = 3
+  else celebrationLevel.value = 1
+  
+  // 关闭总结弹窗
+  showSummaryModal.value = false
+  taskSummary.value = ''
+  pendingCompleteTodo.value = null
+  
+  // 显示庆祝动画
+  showCelebration.value = true
 }
 
 const removeTodo = async (todo: Todo) => {
