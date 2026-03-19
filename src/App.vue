@@ -112,7 +112,7 @@
           <li
             v-for="todo in filteredTodos"
             :key="todo.id"
-            class="px-3 sm:px-6 py-3 sm:py-4 flex items-start sm:items-center justify-between hover:bg-gray-700/40 transition-all duration-300"
+            class="px-3 sm:px-6 py-3 sm:py-4 flex items-start sm:items-center justify-between hover:bg-gray-700/40 transition-all duration-300 group relative"
             :class="{ 'opacity-70': todo.completed }"
           >
             <div class="flex-1 min-w-0">
@@ -131,10 +131,20 @@
                   {{ todo.text }}
                 </span>
               </div>
-              <div class="ml-8 sm:ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-1 sm:gap-2">
-                <span class="bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">📝 {{ formatTime(todo.createdAt) }}</span>
-                <span v-if="todo.completed && todo.completedAt" class="bg-green-700/50 text-green-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">✅ {{ formatTime(todo.completedAt) }}</span>
-                <span v-if="todo.completed && todo.completedAt" class="bg-blue-700/50 text-blue-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
+              <div class="ml-8 sm:ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-1 sm:gap-2 items-start">
+                <span class="bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">📝 {{ formatTime(todo.createdAt) }}</span>
+                <span v-if="todo.completed && todo.completedAt" class="bg-green-700/50 text-green-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">✅ {{ formatTime(todo.completedAt) }}</span>
+                <span v-if="todo.completed && todo.completedAt" class="bg-blue-700/50 text-blue-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
+                <!-- 总结标签 - 点击弹出框 -->
+                <template v-if="todo.summary">
+                  <button 
+                    class="bg-purple-700/50 text-purple-200 px-2 py-1 rounded text-[10px] sm:text-xs cursor-pointer hover:bg-purple-600 transition-colors flex-shrink-0"
+                    @click.stop="toggleSummaryExpanded(todo.id)"
+                    title="点击查看总结"
+                  >
+                    📝 总结
+                  </button>
+                </template>
               </div>
             </div>
             <div class="flex space-x-1 sm:space-x-3 ml-2 flex-shrink-0">
@@ -189,7 +199,7 @@
                 <li
                   v-for="todo in group.todos"
                   :key="todo.id"
-                  class="px-3 sm:px-6 py-3 sm:py-4 flex items-start sm:items-center justify-between hover:bg-gray-700/40 transition-all duration-300 opacity-70"
+                  class="px-3 sm:px-6 py-3 sm:py-4 flex items-start sm:items-center justify-between hover:bg-gray-700/40 transition-all duration-300 opacity-70 group relative"
                 >
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center">
@@ -203,11 +213,20 @@
                         {{ todo.text }}
                       </span>
                     </div>
-                    <div class="ml-8 sm:ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-1 sm:gap-2">
-                      <span class="bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">📝 {{ formatTime(todo.createdAt) }}</span>
-                      <span v-if="todo.completedAt" class="bg-green-700/50 text-green-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">✅ {{ formatTime(todo.completedAt) }}</span>
-                      <span v-if="todo.completedAt" class="bg-blue-700/50 text-blue-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
-                      <span v-if="todo.summary" class="bg-purple-700/50 text-purple-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs">📝 {{ todo.summary }}</span>
+                    <div class="ml-8 sm:ml-10 mt-1 text-xs text-gray-500 flex flex-wrap gap-1 sm:gap-2 items-start">
+                      <span class="bg-gray-700/50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">📝 {{ formatTime(todo.createdAt) }}</span>
+                      <span v-if="todo.completedAt" class="bg-green-700/50 text-green-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">✅ {{ formatTime(todo.completedAt) }}</span>
+                      <span v-if="todo.completedAt" class="bg-blue-700/50 text-blue-400 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs flex-shrink-0">⏱️ {{ getDuration(todo.createdAt, todo.completedAt) }}</span>
+                      <!-- 总结标签 - 点击弹出 -->
+                      <template v-if="todo.summary">
+                        <button 
+                          class="bg-purple-700/50 text-purple-200 px-2 py-1 rounded text-[10px] sm:text-xs cursor-pointer hover:bg-purple-600 transition-colors flex-shrink-0"
+                          @click.stop="toggleSummaryExpanded(todo.id)"
+                          title="点击查看总结"
+                        >
+                          📝 总结
+                        </button>
+                      </template>
                     </div>
                   </div>
                   <div class="flex space-x-1 sm:space-x-3 ml-2 flex-shrink-0">
@@ -242,6 +261,29 @@
       <div class="mt-4 text-center">
         <span v-if="syncing" class="text-xs text-cyan-400">🔄 同步中...</span>
         <span v-else class="text-xs text-gray-500">☁️ 已同步</span>
+      </div>
+    </div>
+    
+    <!-- 总结详情弹窗 -->
+    <div v-if="expandedSummaryModal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" @click.self="closeSummaryModal">
+      <div class="bg-gray-800 rounded-2xl shadow-2xl border border-purple-500/50 w-full max-w-lg max-h-[80vh] overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-purple-400 text-lg">📝</span>
+            <span class="text-white font-medium">任务总结</span>
+          </div>
+          <button 
+            @click="closeSummaryModal"
+            class="text-gray-400 hover:text-white transition-colors p-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[calc(80vh-60px)]">
+          <p class="text-gray-200 text-base leading-relaxed whitespace-pre-wrap">{{ expandedSummaryModal.text }}</p>
+        </div>
       </div>
     </div>
     
@@ -412,6 +454,8 @@ const celebrationLevel = ref(1)
 const showSummaryModal = ref(false)
 const pendingCompleteTodo = ref<Todo | null>(null)
 const taskSummary = ref('')
+const expandedSummaries = ref<Set<string>>(new Set())
+const expandedSummaryModal = ref<{ id: string; text: string } | null>(null)
 
 // 庆祝配置
 const celebrationConfigs = {
@@ -642,6 +686,14 @@ const confirmCompleteWithSummary = async () => {
       completed_at: todo.completedAt,
       summary: todo.summary
     })
+    
+    // 更新本地状态
+    const localTodo = todos.value.find(t => t.id === todo.id)
+    if (localTodo) {
+      localTodo.completed = true
+      localTodo.completedAt = todo.completedAt
+      localTodo.summary = todo.summary
+    }
   }
   
   // 重新计算当日完成次数
@@ -687,6 +739,16 @@ const completeTodoFromTimer = async () => {
 
 const closeCelebration = () => {
   showCelebration.value = false
+}
+
+const toggleSummaryExpanded = (todoId: string) => {
+  const todo = todos.value.find(t => t.id === todoId)
+  if (!todo || !todo.summary) return
+  expandedSummaryModal.value = { id: todoId, text: todo.summary }
+}
+
+const closeSummaryModal = () => {
+  expandedSummaryModal.value = null
 }
 
 // 烟花样式
@@ -823,6 +885,14 @@ const confirmCompleteWithoutSummary = async () => {
       completed_at: todo.completedAt,
       summary: null
     })
+    
+    // 更新本地状态
+    const localTodo = todos.value.find(t => t.id === todo.id)
+    if (localTodo) {
+      localTodo.completed = true
+      localTodo.completedAt = todo.completedAt
+      localTodo.summary = null
+    }
   }
   
   // 重新计算当日完成次数
@@ -843,6 +913,11 @@ const confirmCompleteWithoutSummary = async () => {
   
   // 显示庆祝动画
   showCelebration.value = true
+  
+  // 3秒后自动关闭计时器
+  setTimeout(() => {
+    closeTimer()
+  }, 500)
 }
 
 const removeTodo = async (todo: Todo) => {
